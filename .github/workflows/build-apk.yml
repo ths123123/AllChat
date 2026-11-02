@@ -4,6 +4,9 @@ on:
   push:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -20,9 +23,19 @@ jobs:
           gradle-version: "8.9"
 
       - name: Build APK
-        run: gradle assembleDebug --no-daemon
+        run: |
+          gradle assembleDebug --no-daemon
+          cp app/build/outputs/apk/debug/app-debug.apk AllChat.apk
 
       - uses: actions/upload-artifact@v4
         with:
           name: AllChat-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: AllChat.apk
+
+      - name: Publish release (link unduhan langsung)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: AllChat v1.0.${{ github.run_number }}
+          files: AllChat.apk
+          make_latest: true
