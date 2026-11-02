@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.AllChat" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">#1877F2</item>
+    </style>
+</resources>
