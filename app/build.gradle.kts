@@ -16,6 +16,12 @@ android {
         targetSdk = 34
         versionCode = buildNumber
         versionName = "1.0.$buildNumber"
+        // Hanya prosesor HP modern (64-bit ARM) → APK jauh lebih kecil
+        ndk { abiFilters += listOf("arm64-v8a") }
+    }
+
+    packaging {
+        jniLibs { useLegacyPackaging = true } // library native dikompres di dalam APK
     }
 
     // Kunci tanda tangan tetap: file dibuat oleh GitHub Actions dari secret KEYSTORE_B64,
