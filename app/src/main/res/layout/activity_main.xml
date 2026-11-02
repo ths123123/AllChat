@@ -3,35 +3,83 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="?attr/colorSurface"
+    android:background="@color/bg"
     android:fitsSystemWindows="true"
     android:orientation="vertical">
 
-    <com.google.android.material.appbar.MaterialToolbar
-        android:id="@+id/toolbar"
-        android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize"
-        app:titleTextAppearance="@style/TextAppearance.Material3.TitleLarge"
-        app:subtitleTextAppearance="@style/TextAppearance.Material3.LabelMedium"
-        app:menu="@menu/top_menu" />
-
-    <com.google.android.material.progressindicator.LinearProgressIndicator
-        android:id="@+id/progress"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:visibility="invisible"
-        app:trackThickness="2dp" />
-
-    <androidx.viewpager2.widget.ViewPager2
-        android:id="@+id/pager"
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1" />
+        android:layout_weight="1">
 
-    <com.google.android.material.bottomnavigation.BottomNavigationView
-        android:id="@+id/bottomNav"
+        <androidx.viewpager2.widget.ViewPager2
+            android:id="@+id/pager"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <com.google.android.material.progressindicator.LinearProgressIndicator
+            android:id="@+id/progress"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top"
+            android:visibility="invisible"
+            app:trackColor="@android:color/transparent"
+            app:trackThickness="2dp" />
+    </FrameLayout>
+
+    <View
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        app:labelVisibilityMode="labeled"
-        app:menu="@menu/bottom_nav" />
+        android:layout_height="1px"
+        android:background="@color/hairline" />
+
+    <!-- Bar bawah ramping: 2 tab + tombol menu -->
+    <LinearLayout
+        android:id="@+id/bar"
+        android:layout_width="match_parent"
+        android:layout_height="60dp"
+        android:background="@color/bar"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="12dp"
+        android:paddingEnd="4dp">
+
+        <LinearLayout
+            android:id="@+id/tabMessenger"
+            style="@style/BarTab">
+
+            <ImageView
+                android:id="@+id/iconMessenger"
+                style="@style/BarTabIcon"
+                android:src="@drawable/ic_messenger" />
+
+            <TextView
+                android:id="@+id/labelMessenger"
+                style="@style/BarTabLabel"
+                android:text="Messenger" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/tabInstagram"
+            style="@style/BarTab">
+
+            <ImageView
+                android:id="@+id/iconInstagram"
+                style="@style/BarTabIcon"
+                android:src="@drawable/ic_instagram" />
+
+            <TextView
+                android:id="@+id/labelInstagram"
+                style="@style/BarTabLabel"
+                android:text="Instagram" />
+        </LinearLayout>
+
+        <ImageButton
+            android:id="@+id/moreButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Menu"
+            android:src="@drawable/ic_more"
+            app:tint="@color/muted" />
+    </LinearLayout>
 </LinearLayout>

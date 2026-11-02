@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<menu xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:id="@+id/action_reload" android:title="Muat ulang" />
-    <item android:id="@+id/action_open_app" android:title="Buka aplikasi asli" />
-    <item android:id="@+id/action_update" android:title="Cek pembaruan" />
-    <item android:id="@+id/action_disconnect" android:title="Putuskan akun ini" />
-</menu>

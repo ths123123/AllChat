@@ -2,21 +2,22 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="?attr/colorSurface"
+    android:background="@color/bg"
     android:gravity="center"
     android:orientation="vertical"
-    android:padding="32dp">
+    android:paddingStart="40dp"
+    android:paddingEnd="40dp">
 
     <FrameLayout
         android:id="@+id/iconCircle"
-        android:layout_width="96dp"
-        android:layout_height="96dp"
+        android:layout_width="72dp"
+        android:layout_height="72dp"
         android:background="@drawable/circle_bg">
 
         <ImageView
             android:id="@+id/icon"
-            android:layout_width="52dp"
-            android:layout_height="52dp"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
             android:layout_gravity="center"
             android:importantForAccessibility="no"
             android:tint="#FFFFFFFF" />
@@ -24,39 +25,35 @@
 
     <TextView
         android:id="@+id/title"
-        style="@style/ConnectTitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
-        android:gravity="center" />
+        android:layout_marginTop="20dp"
+        android:textColor="@color/ink"
+        android:textSize="22sp"
+        android:textStyle="bold" />
 
     <TextView
         android:id="@+id/desc"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="6dp"
         android:gravity="center"
-        android:lineSpacingMultiplier="1.2"
-        android:maxWidth="320dp"
-        android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
-        android:textColor="?android:attr/textColorSecondary" />
+        android:lineSpacingMultiplier="1.25"
+        android:textColor="@color/muted"
+        android:textSize="15sp" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/connectButton"
         android:layout_width="match_parent"
-        android:layout_height="56dp"
-        android:layout_marginTop="32dp"
-        android:maxWidth="320dp"
+        android:layout_height="54dp"
+        android:layout_marginTop="28dp"
+        android:insetTop="0dp"
+        android:insetBottom="0dp"
+        android:letterSpacing="0"
         android:text="Hubungkan"
-        android:textSize="16sp" />
-
-    <TextView
-        android:id="@+id/note"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:gravity="center"
-        android:maxWidth="320dp"
-        android:textAppearance="@style/TextAppearance.Material3.BodySmall"
-        android:textColor="?android:attr/textColorTertiary" />
+        android:textAllCaps="false"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        app:cornerRadius="27dp"
+        xmlns:app="http://schemas.android.com/apk/res-auto" />
 </LinearLayout>

@@ -4,10 +4,14 @@ import android.annotation.SuppressLint
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.res.ColorStateList
-import android.graphics.Bitmap
+import android.content.res.Configuration
 import android.graphics.Color
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.transition.TransitionManager
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -21,20 +25,20 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
-import com.google.android.material.appbar.MaterialToolbar
-import com.google.android.material.bottomnavigation.BottomNavigationView
+import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.progressindicator.LinearProgressIndicator
-import com.google.android.material.snackbar.Snackbar
 
 /** Satu layanan chat. */
 data class ChatService(
@@ -44,17 +48,16 @@ data class ChatService(
     val hosts: List<String>,
     val colorRes: Int,
     val iconRes: Int,
-    val navId: Int,
     val appPackage: String,
-    /** null = tampilan HP biasa; angka = lebar halaman desktop yang dipaskan ke layar */
+    /** null = tampilan HP; angka = lebar halaman desktop yang dipaskan ke layar */
     val desktopWidth: Int?,
-    val connectDesc: String,
-    val connectNote: String
+    val connectDesc: String
 )
 
-/** Satu halaman di dalam ViewPager: WebView + layar "Hubungkan" di atasnya. */
+/** Satu halaman: WebView + layar "Hubungkan" di atasnya. */
 class Page(val service: ChatService, val root: FrameLayout, val web: WebView, val connect: View) {
     var progress = 100
+    var loaded = false
 }
 
 class MainActivity : AppCompatActivity() {
@@ -68,40 +71,29 @@ class MainActivity : AppCompatActivity() {
             key = "messenger", title = "Messenger",
             url = "https://www.facebook.com/messages/",
             hosts = listOf("facebook.com", "messenger.com", "fbcdn.net", "fb.com", "fbsbx.com"),
-            colorRes = R.color.messenger, iconRes = R.drawable.ic_messenger, navId = R.id.nav_messenger,
+            colorRes = R.color.messenger, iconRes = R.drawable.ic_messenger,
             appPackage = "com.facebook.orca",
             desktopWidth = 760,
-            connectDesc = "Baca dan balas chat Messenger langsung dari sini.",
-            connectNote = "Masuk sekali saja dengan akun Facebook. Setelah itu langsung tersambung setiap kali dibuka."
+            connectDesc = "Masuk sekali dengan akun Facebook,\nselanjutnya langsung terbuka."
         ),
         ChatService(
             key = "instagram", title = "Instagram",
             url = "https://www.instagram.com/direct/inbox/",
             hosts = listOf("instagram.com", "cdninstagram.com", "facebook.com", "fbcdn.net"),
-            colorRes = R.color.instagram, iconRes = R.drawable.ic_instagram, navId = R.id.nav_instagram,
+            colorRes = R.color.instagram, iconRes = R.drawable.ic_instagram,
             appPackage = "com.instagram.android",
             desktopWidth = null,
-            connectDesc = "Semua pesan langsung (DM) Instagram kamu di satu tempat.",
-            connectNote = "Masuk sekali saja dengan akun Instagram (atau tombol \"Lanjutkan dengan Facebook\")."
-        ),
-        ChatService(
-            key = "whatsapp", title = "WhatsApp",
-            url = "https://web.whatsapp.com/",
-            hosts = listOf("whatsapp.com", "whatsapp.net"),
-            colorRes = R.color.whatsapp, iconRes = R.drawable.ic_whatsapp, navId = R.id.nav_whatsapp,
-            appPackage = "com.whatsapp",
-            desktopWidth = 900,
-            connectDesc = "Tautkan WhatsApp kamu sebagai perangkat tambahan, tanpa logout dari HP.",
-            connectNote = "Pilih \"Tautkan dengan nomor telepon\", masukkan nomormu, lalu ketik kode yang muncul di aplikasi WhatsApp."
+            connectDesc = "Masuk sekali dengan akun Instagram,\nselanjutnya langsung terbuka."
         )
     )
 
     private lateinit var pages: List<Page>
     private lateinit var pager: ViewPager2
-    private lateinit var toolbar: MaterialToolbar
     private lateinit var progressBar: LinearProgressIndicator
-    private lateinit var bottomNav: BottomNavigationView
+    private lateinit var bar: LinearLayout
+    private lateinit var tabs: List<Triple<LinearLayout, ImageView, TextView>>
     private lateinit var updater: Updater
+    private val handler = Handler(Looper.getMainLooper())
     private val prefs by lazy { getSharedPreferences("allchat", MODE_PRIVATE) }
 
     private var fileCallback: ValueCallback<Array<Uri>>? = null
@@ -117,87 +109,115 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        setupSystemBars()
 
-        toolbar = findViewById(R.id.toolbar)
-        progressBar = findViewById(R.id.progress)
         pager = findViewById(R.id.pager)
-        bottomNav = findViewById(R.id.bottomNav)
+        progressBar = findViewById(R.id.progress)
+        bar = findViewById(R.id.bar)
+        tabs = listOf(
+            Triple(findViewById(R.id.tabMessenger), findViewById(R.id.iconMessenger), findViewById(R.id.labelMessenger)),
+            Triple(findViewById(R.id.tabInstagram), findViewById(R.id.iconInstagram), findViewById(R.id.labelInstagram))
+        )
         updater = Updater(this)
 
         CookieManager.getInstance().setAcceptCookie(true)
-
         pages = services.map { buildPage(it) }
 
         pager.adapter = PagerAdapter(pages)
         pager.offscreenPageLimit = pages.size
 
+        val start = prefs.getInt("last_tab", 0).coerceIn(0, pages.size - 1)
+        pager.setCurrentItem(start, false)
+        selectTab(start, animate = false)
+
         pager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
             override fun onPageSelected(position: Int) {
-                bottomNav.selectedItemId = services[position].navId
-                applyTheme(position)
+                selectTab(position, animate = true)
+                prefs.edit().putInt("last_tab", position).apply()
+                ensureLoaded(pages[position])
             }
         })
-        bottomNav.setOnItemSelectedListener { item ->
-            val index = services.indexOfFirst { it.navId == item.itemId }
-            if (index >= 0 && pager.currentItem != index) pager.setCurrentItem(index, true)
-            true
-        }
-        bottomNav.setOnItemReselectedListener { current().web.scrollTo(0, 0) }
-
-        toolbar.setOnMenuItemClickListener { item ->
-            when (item.itemId) {
-                R.id.action_reload -> current().web.reload()
-                R.id.action_open_app -> openNativeApp(current().service)
-                R.id.action_update -> updater.check(silent = false)
-                R.id.action_disconnect -> confirmDisconnect(current())
+        tabs.forEachIndexed { i, t ->
+            t.first.setOnClickListener {
+                if (pager.currentItem == i) pages[i].web.scrollTo(0, 0) else pager.setCurrentItem(i, true)
             }
-            true
         }
+        findViewById<View>(R.id.moreButton).setOnClickListener { showMenu() }
 
-        applyTheme(0)
+        // Cepat: muat dulu tab yang sedang dibuka, tab lain menyusul sebentar kemudian
+        ensureLoaded(pages[start])
+        handler.postDelayed({ pages.forEach { ensureLoaded(it) } }, 1500)
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                val web = current().web
-                if (current().connect.visibility != View.VISIBLE && web.canGoBack()) web.goBack()
-                else moveTaskToBack(true) // tetap hidup di latar, tidak perlu memuat ulang
+                val p = current()
+                if (p.connect.visibility != View.VISIBLE && p.web.canGoBack()) p.web.goBack()
+                else moveTaskToBack(true) // tetap hidup di latar → dibuka lagi langsung tampil
             }
         })
 
-        updater.check(silent = true)
+        handler.postDelayed({ updater.check(silent = true) }, 4000)
     }
 
     private fun current() = pages[pager.currentItem]
-
     private fun isConnected(s: ChatService) = prefs.getBoolean("connected_${s.key}", false)
 
-    // ---------- Tampilan ----------
+    private fun setupSystemBars() {
+        val night = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+            Configuration.UI_MODE_NIGHT_YES
+        WindowCompat.getInsetsController(window, window.decorView).apply {
+            isAppearanceLightStatusBars = !night
+            isAppearanceLightNavigationBars = !night
+        }
+    }
 
-    private fun applyTheme(position: Int) {
-        val s = services[position]
-        val color = ContextCompat.getColor(this, s.colorRes)
+    // ---------- Tab bawah ----------
+
+    private fun selectTab(position: Int, animate: Boolean) {
+        if (animate) TransitionManager.beginDelayedTransition(bar)
         val muted = ContextCompat.getColor(this, R.color.muted)
-        toolbar.title = s.title
-        toolbar.subtitle = "AllChat"
-        toolbar.setTitleTextColor(color)
-
-        val states = arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf())
-        val tint = ColorStateList(states, intArrayOf(color, muted))
-        bottomNav.itemIconTintList = tint
-        bottomNav.itemTextColor = tint
-        bottomNav.itemActiveIndicatorColor =
-            ColorStateList.valueOf(Color.argb(40, Color.red(color), Color.green(color), Color.blue(color)))
-
-        progressBar.setIndicatorColor(color)
+        tabs.forEachIndexed { i, (box, icon, label) ->
+            val color = ContextCompat.getColor(this, services[i].colorRes)
+            val selected = i == position
+            box.backgroundTintList = ColorStateList.valueOf(
+                if (selected) Color.argb(30, Color.red(color), Color.green(color), Color.blue(color))
+                else Color.TRANSPARENT
+            )
+            icon.imageTintList = ColorStateList.valueOf(if (selected) color else muted)
+            label.setTextColor(color)
+            label.visibility = if (selected) View.VISIBLE else View.GONE
+        }
+        progressBar.setIndicatorColor(ContextCompat.getColor(this, services[position].colorRes))
         updateProgress()
     }
 
     private fun updateProgress() {
+        if (!::pager.isInitialized) return
         val p = current()
-        val loading = p.connect.visibility != View.VISIBLE && p.progress < 100
+        val loading = p.connect.visibility != View.VISIBLE && p.loaded && p.progress < 100
         progressBar.visibility = if (loading) View.VISIBLE else View.INVISIBLE
         if (loading) progressBar.setProgressCompat(p.progress, true)
     }
+
+    // ---------- Menu ----------
+
+    private fun showMenu() {
+        val p = current()
+        val sheet = BottomSheetDialog(this)
+        val v = LayoutInflater.from(this).inflate(R.layout.sheet_menu, null)
+        v.findViewById<TextView>(R.id.sheetTitle).text = "${p.service.title}  ·  AllChat v${BuildConfig.VERSION_NAME}"
+        v.findViewById<View>(R.id.rowReload).setOnClickListener { sheet.dismiss(); p.web.reload() }
+        v.findViewById<View>(R.id.rowOpenApp).setOnClickListener { sheet.dismiss(); openNativeApp(p.service) }
+        v.findViewById<View>(R.id.rowUpdate).setOnClickListener { sheet.dismiss(); updater.check(silent = false) }
+        v.findViewById<View>(R.id.rowDisconnect).apply {
+            visibility = if (isConnected(p.service)) View.VISIBLE else View.GONE
+            setOnClickListener { sheet.dismiss(); confirmDisconnect(p) }
+        }
+        sheet.setContentView(v)
+        sheet.show()
+    }
+
+    // ---------- Halaman ----------
 
     private fun buildPage(s: ChatService): Page {
         val root = FrameLayout(this).apply {
@@ -213,9 +233,8 @@ class MainActivity : AppCompatActivity() {
         val color = ContextCompat.getColor(this, s.colorRes)
         connect.findViewById<View>(R.id.iconCircle).backgroundTintList = ColorStateList.valueOf(color)
         connect.findViewById<ImageView>(R.id.icon).setImageResource(s.iconRes)
-        connect.findViewById<TextView>(R.id.title).text = "Hubungkan ${s.title}"
+        connect.findViewById<TextView>(R.id.title).text = s.title
         connect.findViewById<TextView>(R.id.desc).text = s.connectDesc
-        connect.findViewById<TextView>(R.id.note).text = s.connectNote
         connect.findViewById<MaterialButton>(R.id.connectButton).apply {
             backgroundTintList = ColorStateList.valueOf(color)
             setOnClickListener { connect(page) }
@@ -223,47 +242,41 @@ class MainActivity : AppCompatActivity() {
 
         root.addView(web)
         root.addView(connect)
-
-        if (isConnected(s)) {
-            connect.visibility = View.GONE
-            web.loadUrl(s.url)
-        }
+        connect.visibility = if (isConnected(s)) View.GONE else View.VISIBLE
         return page
+    }
+
+    private fun ensureLoaded(page: Page) {
+        if (page.loaded || !isConnected(page.service)) return
+        page.loaded = true
+        page.web.loadUrl(page.service.url)
     }
 
     private fun connect(page: Page) {
         prefs.edit().putBoolean("connected_${page.service.key}", true).apply()
-        page.connect.animate().alpha(0f).setDuration(200).withEndAction {
+        ensureLoaded(page)
+        page.connect.animate().alpha(0f).setDuration(180).withEndAction {
             page.connect.visibility = View.GONE
             page.connect.alpha = 1f
+            updateProgress()
         }.start()
-        page.web.loadUrl(page.service.url)
-        updateProgress()
-
-        if (page.service.key == "whatsapp") {
-            Snackbar.make(
-                page.root,
-                "Pilih \"Tautkan dengan nomor telepon\", lalu masukkan kodenya di WhatsApp.",
-                Snackbar.LENGTH_INDEFINITE
-            ).setAction("Buka WhatsApp") { openNativeApp(page.service) }
-                .setActionTextColor(ContextCompat.getColor(this, R.color.whatsapp))
-                .show()
-        }
     }
 
     private fun confirmDisconnect(page: Page) {
         MaterialAlertDialogBuilder(this)
-            .setTitle("Putuskan ${page.service.title}?")
-            .setMessage("Kamu akan keluar dari ${page.service.title} di AllChat. Akun di aplikasi aslinya tidak terpengaruh.")
-            .setPositiveButton("Putuskan") { _, _ -> disconnect(page) }
+            .setTitle("Keluar dari ${page.service.title}?")
+            .setMessage("Hanya di AllChat. Akun di aplikasi aslinya tidak terpengaruh.")
+            .setPositiveButton("Keluar") { _, _ -> disconnect(page) }
             .setNegativeButton("Batal", null)
             .show()
     }
 
     private fun disconnect(page: Page) {
         val cm = CookieManager.getInstance()
-        for (host in page.service.hosts) {
-            for (url in listOf("https://$host", "https://www.$host", "https://web.$host")) {
+        // Messenger & Instagram berbagi beberapa domain Meta; hapus milik layanan ini saja
+        val own = if (page.service.key == "instagram") listOf("instagram.com") else listOf("facebook.com", "messenger.com")
+        for (host in own) {
+            for (url in listOf("https://$host", "https://www.$host")) {
                 val cookies = cm.getCookie(url) ?: continue
                 cookies.split(";").map { it.substringBefore("=").trim() }.filter { it.isNotEmpty() }.forEach { name ->
                     cm.setCookie(url, "$name=; Max-Age=0; Path=/; Domain=.$host")
@@ -272,10 +285,10 @@ class MainActivity : AppCompatActivity() {
             }
             WebStorage.getInstance().deleteOrigin("https://$host")
             WebStorage.getInstance().deleteOrigin("https://www.$host")
-            WebStorage.getInstance().deleteOrigin("https://web.$host")
         }
         cm.flush()
         prefs.edit().putBoolean("connected_${page.service.key}", false).apply()
+        page.loaded = false
         page.web.loadUrl("about:blank")
         page.web.clearHistory()
         page.connect.visibility = View.VISIBLE
@@ -284,11 +297,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun openNativeApp(s: ChatService) {
         val intent = packageManager.getLaunchIntentForPackage(s.appPackage)
-        if (intent != null) {
-            startActivity(intent)
-        } else {
-            Toast.makeText(this, "Aplikasi ${s.title} tidak terpasang di HP ini", Toast.LENGTH_SHORT).show()
-        }
+        if (intent != null) startActivity(intent)
+        else Toast.makeText(this, "Aplikasi ${s.title} tidak terpasang", Toast.LENGTH_SHORT).show()
     }
 
     // ---------- WebView ----------
@@ -299,29 +309,32 @@ class MainActivity : AppCompatActivity() {
         web.layoutParams = ViewGroup.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
         )
-        web.setBackgroundColor(Color.TRANSPARENT)
+        web.setBackgroundColor(ContextCompat.getColor(this, R.color.bg))
         web.overScrollMode = View.OVER_SCROLL_NEVER
+        web.isVerticalScrollBarEnabled = false
+        web.isHorizontalScrollBarEnabled = false
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            web.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, true)
+        }
         CookieManager.getInstance().setAcceptThirdPartyCookies(web, true)
 
         with(web.settings) {
             javaScriptEnabled = true
             domStorageEnabled = true
             databaseEnabled = true
-            mediaPlaybackRequiresUserGesture = false
+            mediaPlaybackRequiresUserGesture = true   // video tidak autoplay → lebih ringan & hemat kuota
             allowFileAccess = false
-            cacheMode = WebSettings.LOAD_DEFAULT
-            mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
-            textZoom = 100 // abaikan ukuran huruf sistem yang bikin layout pecah
+            cacheMode = WebSettings.LOAD_DEFAULT       // pakai cache → buka ulang lebih cepat
+            offscreenPreRaster = true                  // geser antar tab terasa mulus
+            textZoom = 100
+            useWideViewPort = true
+            loadWithOverviewMode = true
             if (service.desktopWidth != null) {
                 userAgentString = desktopUserAgent
-                useWideViewPort = true
-                loadWithOverviewMode = true
                 setSupportZoom(true)
                 builtInZoomControls = true
                 displayZoomControls = false
             } else {
-                useWideViewPort = true
-                loadWithOverviewMode = true
                 setSupportZoom(false)
             }
         }
@@ -331,24 +344,16 @@ class MainActivity : AppCompatActivity() {
                 val uri = request.url
                 val scheme = uri.scheme ?: return false
                 if (scheme != "http" && scheme != "https") {
-                    // intent:, whatsapp:, mailto:, dll. → serahkan ke Android
                     try { startActivity(Intent(Intent.ACTION_VIEW, uri)) } catch (_: Exception) {}
                     return true
                 }
                 val host = uri.host ?: return false
-                val internal = service.hosts.any { host == it || host.endsWith(".$it") }
-                if (internal) return false
+                if (service.hosts.any { host == it || host.endsWith(".$it") }) return false
                 try { startActivity(Intent(Intent.ACTION_VIEW, uri)) } catch (_: ActivityNotFoundException) {}
                 return true
             }
 
-            override fun onPageStarted(view: WebView, url: String?, favicon: Bitmap?) {
-                fitDesktopPage(view, service)
-            }
-
-            override fun onPageCommitVisible(view: WebView, url: String?) {
-                fitDesktopPage(view, service)
-            }
+            override fun onPageCommitVisible(view: WebView, url: String?) = fitDesktopPage(view, service)
 
             override fun onPageFinished(view: WebView, url: String?) {
                 fitDesktopPage(view, service)
@@ -359,6 +364,7 @@ class MainActivity : AppCompatActivity() {
         web.webChromeClient = object : WebChromeClient() {
             override fun onProgressChanged(view: WebView, newProgress: Int) {
                 (view.tag as? Page)?.progress = newProgress
+                if (newProgress > 10) fitDesktopPage(view, service)
                 if (::pager.isInitialized && view == current().web) updateProgress()
             }
 
@@ -381,25 +387,22 @@ class MainActivity : AppCompatActivity() {
         return web
     }
 
-    /**
-     * Halaman versi desktop (Messenger, WhatsApp) dipaksa punya lebar tetap,
-     * lalu WebView mengecilkannya agar pas satu layar — tidak ada bagian yang terpotong.
-     */
+    /** Halaman desktop Messenger dipaskan ke lebar layar, tidak ada yang terpotong. */
     private fun fitDesktopPage(view: WebView, s: ChatService) {
         val w = s.desktopWidth ?: return
         val js = """
             (function(){
+              if(window.__allchatFit) return;
               var c='width=$w, user-scalable=yes';
               function apply(){
                 var m=document.querySelector('meta[name=viewport]');
                 if(!m){ if(!document.head) return; m=document.createElement('meta'); m.name='viewport'; document.head.appendChild(m); }
                 if(m.content!==c) m.content=c;
               }
+              if(!document.head) return;
+              window.__allchatFit=true;
               apply();
-              if(!window.__allchatFit){
-                window.__allchatFit=true;
-                new MutationObserver(apply).observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['content']});
-              }
+              new MutationObserver(apply).observe(document.head,{childList:true,subtree:true,attributes:true,attributeFilter:['content']});
             })();
         """.trimIndent()
         view.evaluateJavascript(js, null)

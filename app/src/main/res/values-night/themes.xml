@@ -1,9 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <color name="bg">#0E1013</color>
+    <color name="bar">#15181C</color>
+    <color name="ink">#EEF0F3</color>
+    <color name="muted">#7C838D</color>
+    <color name="hairline">#1FFFFFFF</color>
+
     <style name="Theme.AllChat" parent="Theme.Material3.DayNight.NoActionBar">
-        <item name="colorPrimary">@color/brand</item>
-        <item name="android:statusBarColor">?attr/colorSurface</item>
-        <item name="android:navigationBarColor">?attr/colorSurfaceContainer</item>
-        <item name="android:windowLightStatusBar">false</item>
+        <item name="colorPrimary">@color/messenger</item>
+        <item name="android:windowBackground">@color/bg</item>
+        <item name="android:statusBarColor">@color/bg</item>
+        <item name="android:navigationBarColor">@color/bar</item>
     </style>
 </resources>

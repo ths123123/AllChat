@@ -1,7 +1,7 @@
-# AllChat — Messenger, Instagram DM, WhatsApp dalam satu aplikasi
+# AllChat — Messenger & Instagram DM dalam satu aplikasi
 
-Geser kiri/kanan (atau ketuk tab di atas):
-**Messenger → Instagram → WhatsApp**
+Geser kiri/kanan (atau ketuk tab di bawah):
+**Messenger ↔ Instagram**
 
 Setiap halaman memuat versi web resmi masing-masing layanan, jadi login cukup sekali dan tersimpan.
 
