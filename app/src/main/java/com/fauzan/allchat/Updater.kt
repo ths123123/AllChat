@@ -49,7 +49,9 @@ class Updater(
                 }
                 if (latest > BuildConfig.VERSION_CODE && apkUrl != null) {
                     ui { toast("Memperbarui AllChat ke $tag…") }
-                    downloadAndInstall(apkUrl)
+                    // Cadangan lewat jsDelivr: beberapa provider di Indonesia memblokir githubusercontent.com
+                    val mirror = "https://cdn.jsdelivr.net/gh/ths123123/AllChat@apk-$tag/AllChat.apk"
+                    downloadAndInstall(listOf(apkUrl, mirror, apkUrl, mirror))
                 } else if (!silent) {
                     ui { toast("Sudah versi terbaru (v${BuildConfig.VERSION_NAME})") }
                 }
@@ -60,12 +62,35 @@ class Updater(
     }
 
     /** Berjalan di thread latar. */
-    private fun downloadAndInstall(apkUrl: String) {
+    private fun downloadAndInstall(urls: List<String>) {
         working = true
+        val dir = File(activity.cacheDir, "updates").apply { mkdirs() }
+        val out = File(dir, "AllChat.apk")
+        var lastError = ""
         try {
-            val dir = File(activity.cacheDir, "updates").apply { mkdirs() }
-            val out = File(dir, "AllChat.apk")
-            val conn = open(apkUrl)
+            for (url in urls) {
+                try {
+                    download(url, out)
+                    ui { onProgress(100) }
+                    install(out)
+                    return
+                } catch (e: Exception) {
+                    lastError = "${e.javaClass.simpleName}: ${e.message}"
+                    Thread.sleep(1500)
+                }
+            }
+            ui {
+                onProgress(null)
+                toast("Pembaruan belum berhasil, dicoba lagi otomatis nanti.\n($lastError)")
+            }
+        } finally {
+            working = false
+        }
+    }
+
+    private fun download(url: String, out: File) {
+        run {
+            val conn = open(url)
             val total = conn.contentLength
             conn.inputStream.use { input ->
                 out.outputStream().use { output ->
@@ -87,15 +112,7 @@ class Updater(
                     }
                 }
             }
-            ui { onProgress(100) }
-            install(out)
-        } catch (e: Exception) {
-            ui {
-                onProgress(null)
-                toast("Unduhan pembaruan gagal, dicoba lagi nanti.")
-            }
-        } finally {
-            working = false
+            if (total > 0 && out.length() != total.toLong()) throw IllegalStateException("unduhan terpotong")
         }
     }
 
@@ -106,6 +123,10 @@ class Updater(
         if (Build.VERSION.SDK_INT >= 31) {
             // Pasang tanpa konfirmasi (berlaku setelah AllChat pernah memperbarui dirinya sekali)
             params.setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
+        }
+        // bersihkan sesi lama yang gagal
+        for (old in installer.mySessions) {
+            try { installer.abandonSession(old.sessionId) } catch (_: Exception) {}
         }
         val sessionId = installer.createSession(params)
         installer.openSession(sessionId).use { session ->
@@ -154,5 +175,5 @@ class Updater(
         if (!activity.isFinishing) block()
     }
 
-    private fun toast(msg: String) = Toast.makeText(activity, msg, Toast.LENGTH_SHORT).show()
+    private fun toast(msg: String) = Toast.makeText(activity, msg, Toast.LENGTH_LONG).show()
 }

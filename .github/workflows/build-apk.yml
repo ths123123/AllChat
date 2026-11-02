@@ -45,3 +45,15 @@ jobs:
           body: ${{ github.event.head_commit.message }}
           files: AllChat.apk
           make_latest: true
+
+      - name: Salinan APK di CDN cadangan (jsDelivr) untuk jaringan yang memblokir githubusercontent
+        run: |
+          TAG=apk-v1.0.${{ github.run_number }}
+          mkdir dist && cp AllChat.apk dist/
+          cd dist
+          git init -q -b dist
+          git add AllChat.apk
+          git -c user.name="github-actions" -c user.email="github-actions@users.noreply.github.com" commit -qm "APK v1.0.${{ github.run_number }}"
+          git tag "$TAG"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" dist "$TAG"
+          curl -s -o /dev/null -w "jsDelivr warmup: %{http_code}\n" "https://cdn.jsdelivr.net/gh/${{ github.repository }}@$TAG/AllChat.apk" || true
