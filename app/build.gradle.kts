@@ -64,9 +64,7 @@ dependencies {
     implementation("androidx.viewpager2:viewpager2:1.1.0")
     implementation("androidx.recyclerview:recyclerview:1.3.2")
 
-    // Translate layar — semuanya berjalan di HP (offline setelah bahasa diunduh), tanpa iklan.
-    // Model baca teks diunduh oleh Google Play Services, jadi APK tetap kecil.
+    // Translate layar: baca teks di HP (model dari Google Play Services), terjemahan online. Tanpa iklan.
     implementation("com.google.android.gms:play-services-mlkit-text-recognition:19.0.1")
     implementation("com.google.android.gms:play-services-mlkit-text-recognition-korean:16.0.1")
-    implementation("com.google.mlkit:translate:17.0.3")
 }

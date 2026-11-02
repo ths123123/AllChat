@@ -19,8 +19,6 @@ import com.fauzan.allchat.R
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.chip.Chip
 import com.google.android.material.chip.ChipGroup
-import com.google.mlkit.nl.translate.Translation
-import com.google.mlkit.nl.translate.TranslatorOptions
 
 class TranslateSettingsActivity : AppCompatActivity() {
 
@@ -143,23 +141,8 @@ class TranslateSettingsActivity : AppCompatActivity() {
             return
         }
 
-        startButton.isEnabled = false
-        status.text = "Menyiapkan bahasa ${Languages.label(src)} → ${Languages.label(dst)}…\n(Pertama kali butuh internet, ±30 MB)"
-        val translator = Translation.getClient(
-            TranslatorOptions.Builder().setSourceLanguage(src).setTargetLanguage(dst).build()
-        )
-        translator.downloadModelIfNeeded()
-            .addOnSuccessListener {
-                translator.close()
-                status.text = ""
-                startButton.isEnabled = true
-                val mpm = getSystemService(MediaProjectionManager::class.java)
-                projectionLauncher.launch(mpm.createScreenCaptureIntent())
-            }
-            .addOnFailureListener {
-                translator.close()
-                startButton.isEnabled = true
-                status.text = "Gagal mengunduh bahasa. Periksa koneksi internet lalu coba lagi."
-            }
+        status.text = ""
+        val mpm = getSystemService(MediaProjectionManager::class.java)
+        projectionLauncher.launch(mpm.createScreenCaptureIntent())
     }
 }

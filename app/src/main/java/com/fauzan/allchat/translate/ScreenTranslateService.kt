@@ -38,12 +38,6 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import com.fauzan.allchat.R
-import com.google.android.gms.tasks.Task
-import com.google.android.gms.tasks.Tasks
-import com.google.mlkit.nl.translate.TranslateLanguage
-import com.google.mlkit.nl.translate.Translation
-import com.google.mlkit.nl.translate.Translator
-import com.google.mlkit.nl.translate.TranslatorOptions
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.Text
 import com.google.mlkit.vision.text.TextRecognition
@@ -82,7 +76,8 @@ class ScreenTranslateService : Service() {
     private var latestFrame: Image? = null
 
     private var recognizer: TextRecognizer? = null
-    private var translator: Translator? = null
+    private var srcLang = Languages.KOREAN
+    private var dstLang = Languages.INDONESIAN
 
     private var bubble: ImageView? = null
     private var bubbleParams: WindowManager.LayoutParams? = null
@@ -228,16 +223,13 @@ class ScreenTranslateService : Service() {
     // ---------- ML Kit ----------
 
     private fun setupMlKit() {
-        val src = Languages.source(this)
-        val dst = Languages.target(this)
-        recognizer = if (src == TranslateLanguage.KOREAN) {
+        srcLang = Languages.source(this)
+        dstLang = Languages.target(this)
+        recognizer = if (srcLang == Languages.KOREAN) {
             TextRecognition.getClient(KoreanTextRecognizerOptions.Builder().build())
         } else {
             TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
         }
-        translator = Translation.getClient(
-            TranslatorOptions.Builder().setSourceLanguage(src).setTargetLanguage(dst).build()
-        ).also { it.downloadModelIfNeeded() }
     }
 
     private fun translateScreen() {
@@ -267,17 +259,22 @@ class ScreenTranslateService : Service() {
             finish("Tidak ada teks yang terbaca di layar")
             return
         }
-        val tr = translator ?: return finish("Penerjemah belum siap")
         val sources = blocks.map { b -> b.lines.joinToString(" ") { it.text } }
-        val tasks: List<Task<String>> = sources.map { tr.translate(it) }
-        Tasks.whenAllComplete(tasks).addOnCompleteListener {
-            val results = tasks.mapIndexed { i, t ->
-                if (t.isSuccessful) t.result else sources[i]
+        val boxes = blocks.map { it.boundingBox!! }
+        val src = srcLang
+        val dst = dstLang
+        Thread {
+            val translated = OnlineTranslator.translateAll(sources, src, dst)
+            main.post {
+                val anyOk = translated.any { it != null }
+                if (!anyOk) {
+                    finish("Gagal menerjemahkan. Periksa koneksi internet.")
+                    return@post
+                }
+                showOverlay(boxes, translated.mapIndexed { i, t -> t ?: sources[i] })
+                finish(null)
             }
-            val anyOk = tasks.any { it.isSuccessful }
-            showOverlay(blocks.map { it.boundingBox!! }, results)
-            finish(if (anyOk) null else "Bahasa belum terunduh. Buka AllChat → Translate layar, lalu Mulai lagi.")
-        }
+        }.start()
     }
 
     private fun finish(message: String?) {
@@ -450,7 +447,6 @@ class ScreenTranslateService : Service() {
         try { projection?.stop() } catch (_: Exception) {}
         projection = null
         recognizer?.close()
-        translator?.close()
         bgThread?.quitSafely()
         super.onDestroy()
     }
