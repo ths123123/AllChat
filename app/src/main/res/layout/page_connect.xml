@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/colorSurface"
+    android:gravity="center"
+    android:orientation="vertical"
+    android:padding="32dp">
+
+    <FrameLayout
+        android:id="@+id/iconCircle"
+        android:layout_width="96dp"
+        android:layout_height="96dp"
+        android:background="@drawable/circle_bg">
+
+        <ImageView
+            android:id="@+id/icon"
+            android:layout_width="52dp"
+            android:layout_height="52dp"
+            android:layout_gravity="center"
+            android:importantForAccessibility="no"
+            android:tint="#FFFFFFFF" />
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/title"
+        style="@style/ConnectTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:gravity="center" />
+
+    <TextView
+        android:id="@+id/desc"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:gravity="center"
+        android:lineSpacingMultiplier="1.2"
+        android:maxWidth="320dp"
+        android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+        android:textColor="?android:attr/textColorSecondary" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/connectButton"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:layout_marginTop="32dp"
+        android:maxWidth="320dp"
+        android:text="Hubungkan"
+        android:textSize="16sp" />
+
+    <TextView
+        android:id="@+id/note"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:gravity="center"
+        android:maxWidth="320dp"
+        android:textAppearance="@style/TextAppearance.Material3.BodySmall"
+        android:textColor="?android:attr/textColorTertiary" />
+</LinearLayout>

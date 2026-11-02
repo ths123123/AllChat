@@ -2,6 +2,7 @@ name: Build APK
 
 on:
   push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -22,20 +23,25 @@ jobs:
         with:
           gradle-version: "8.9"
 
-      - name: Build APK
+      - name: Siapkan kunci tanda tangan
+        env:
+          KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
         run: |
-          gradle assembleDebug --no-daemon
-          cp app/build/outputs/apk/debug/app-debug.apk AllChat.apk
+          if [ -z "$KEYSTORE_B64" ]; then echo "::error::Secret KEYSTORE_B64 belum diisi"; exit 1; fi
+          echo "$KEYSTORE_B64" | tr -d ' \r\n' | base64 -d > app/allchat.jks
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: AllChat-apk
-          path: AllChat.apk
+      - name: Build APK
+        env:
+          KS_PASS: ${{ secrets.KS_PASS }}
+        run: |
+          gradle assembleRelease --no-daemon -PbuildNumber=${{ github.run_number }}
+          cp app/build/outputs/apk/release/app-release.apk AllChat.apk
 
-      - name: Publish release (link unduhan langsung)
+      - name: Publish release (dipakai juga oleh fitur update di aplikasi)
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v1.0.${{ github.run_number }}
           name: AllChat v1.0.${{ github.run_number }}
+          body: ${{ github.event.head_commit.message }}
           files: AllChat.apk
           make_latest: true

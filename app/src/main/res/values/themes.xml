@@ -1,6 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <color name="brand">#2563EB</color>
+    <color name="messenger">#0A7CFF</color>
+    <color name="instagram">#D62976</color>
+    <color name="whatsapp">#1DAA61</color>
+    <color name="muted">#8A8F98</color>
+
     <style name="Theme.AllChat" parent="Theme.Material3.DayNight.NoActionBar">
-        <item name="colorPrimary">#1877F2</item>
+        <item name="colorPrimary">@color/brand</item>
+        <item name="android:statusBarColor">?attr/colorSurface</item>
+        <item name="android:navigationBarColor">?attr/colorSurfaceContainer</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+
+    <style name="ConnectTitle" parent="TextAppearance.Material3.HeadlineSmall">
+        <item name="android:textStyle">bold</item>
     </style>
 </resources>
