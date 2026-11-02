@@ -39,6 +39,7 @@ import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.progressindicator.LinearProgressIndicator
+import com.fauzan.allchat.translate.TranslateSettingsActivity
 
 /** Satu layanan chat. */
 data class ChatService(
@@ -61,6 +62,14 @@ class Page(val service: ChatService, val root: FrameLayout, val web: WebView, va
 }
 
 class MainActivity : AppCompatActivity() {
+
+    companion object {
+        const val EXTRA_JUST_UPDATED = "just_updated"
+    }
+
+    /** null = tidak sedang update; 0..100 = progres unduhan pembaruan */
+    private var updatePct: Int? = null
+    private var lastUpdateCheck = 0L
 
     private val desktopUserAgent =
         "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) " +
@@ -118,7 +127,10 @@ class MainActivity : AppCompatActivity() {
             Triple(findViewById(R.id.tabMessenger), findViewById(R.id.iconMessenger), findViewById(R.id.labelMessenger)),
             Triple(findViewById(R.id.tabInstagram), findViewById(R.id.iconInstagram), findViewById(R.id.labelInstagram))
         )
-        updater = Updater(this)
+        updater = Updater(this) { pct ->
+            updatePct = if (pct == null || pct >= 100) null else pct
+            updateProgress()
+        }
 
         CookieManager.getInstance().setAcceptCookie(true)
         pages = services.map { buildPage(it) }
@@ -156,7 +168,23 @@ class MainActivity : AppCompatActivity() {
             }
         })
 
-        handler.postDelayed({ updater.check(silent = true) }, 4000)
+        if (intent?.getBooleanExtra(EXTRA_JUST_UPDATED, false) == true) {
+            Toast.makeText(this, "AllChat diperbarui ke v${BuildConfig.VERSION_NAME}", Toast.LENGTH_SHORT).show()
+        }
+        handler.postDelayed({ autoCheckUpdate() }, 3000)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (::updater.isInitialized) autoCheckUpdate()
+    }
+
+    /** Cek pembaruan otomatis paling sering tiap 30 menit. */
+    private fun autoCheckUpdate() {
+        val now = System.currentTimeMillis()
+        if (now - lastUpdateCheck < 30 * 60 * 1000L) return
+        lastUpdateCheck = now
+        updater.check(silent = true)
     }
 
     private fun current() = pages[pager.currentItem]
@@ -193,6 +221,14 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateProgress() {
         if (!::pager.isInitialized) return
+        val up = updatePct
+        if (up != null) {
+            progressBar.setIndicatorColor(ContextCompat.getColor(this, R.color.muted))
+            progressBar.visibility = View.VISIBLE
+            progressBar.setProgressCompat(up, true)
+            return
+        }
+        progressBar.setIndicatorColor(ContextCompat.getColor(this, services[pager.currentItem].colorRes))
         val p = current()
         val loading = p.connect.visibility != View.VISIBLE && p.loaded && p.progress < 100
         progressBar.visibility = if (loading) View.VISIBLE else View.INVISIBLE
@@ -206,6 +242,10 @@ class MainActivity : AppCompatActivity() {
         val sheet = BottomSheetDialog(this)
         val v = LayoutInflater.from(this).inflate(R.layout.sheet_menu, null)
         v.findViewById<TextView>(R.id.sheetTitle).text = "${p.service.title}  ·  AllChat v${BuildConfig.VERSION_NAME}"
+        v.findViewById<View>(R.id.rowTranslate).setOnClickListener {
+            sheet.dismiss()
+            startActivity(Intent(this, TranslateSettingsActivity::class.java))
+        }
         v.findViewById<View>(R.id.rowReload).setOnClickListener { sheet.dismiss(); p.web.reload() }
         v.findViewById<View>(R.id.rowOpenApp).setOnClickListener { sheet.dismiss(); openNativeApp(p.service) }
         v.findViewById<View>(R.id.rowUpdate).setOnClickListener { sheet.dismiss(); updater.check(silent = false) }

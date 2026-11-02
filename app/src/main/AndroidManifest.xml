@@ -2,8 +2,16 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
-    <!-- Untuk memasang update langsung dari dalam aplikasi -->
+
+    <!-- Update otomatis dari dalam aplikasi -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <uses-permission android:name="android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION" />
+
+    <!-- Translate layar: gelembung mengambang + tangkap layar -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!-- Supaya bisa membuka aplikasi asli (Instagram, Messenger) -->
     <queries>
@@ -18,9 +26,16 @@
         android:roundIcon="@drawable/ic_launcher"
         android:label="AllChat"
         android:theme="@style/Theme.AllChat">
+
+        <!-- Unduh model baca teks (Latin & Korea) lewat Play Services sejak awal -->
+        <meta-data
+            android:name="com.google.mlkit.vision.DEPENDENCIES"
+            android:value="ocr,ocr_korean" />
+
         <activity
             android:name=".MainActivity"
             android:configChanges="orientation|screenSize|smallestScreenSize|keyboardHidden|screenLayout|uiMode|density"
+            android:launchMode="singleTask"
             android:windowSoftInputMode="adjustResize"
             android:exported="true">
             <intent-filter>
@@ -28,6 +43,28 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".translate.TranslateSettingsActivity"
+            android:exported="false" />
+
+        <service
+            android:name=".translate.ScreenTranslateService"
+            android:exported="false"
+            android:foregroundServiceType="mediaProjection" />
+
+        <receiver
+            android:name=".InstallReceiver"
+            android:exported="false" />
+
+        <!-- Setelah update terpasang, buka lagi AllChat otomatis -->
+        <receiver
+            android:name=".UpdatedReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
 
         <provider
             android:name="androidx.core.content.FileProvider"

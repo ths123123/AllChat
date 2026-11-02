@@ -17,6 +17,14 @@
         android:textColor="@color/muted"
         android:textSize="13sp" />
 
+    <TextView
+        android:id="@+id/rowTranslate"
+        style="@style/SheetRow"
+        android:drawableStart="@drawable/ic_translate"
+        android:drawablePadding="14dp"
+        android:drawableTint="@color/ink"
+        android:text="Translate layar"
+        android:textStyle="bold" />
     <TextView android:id="@+id/rowReload" style="@style/SheetRow" android:text="Muat ulang" />
     <TextView android:id="@+id/rowOpenApp" style="@style/SheetRow" android:text="Buka aplikasi asli" />
     <TextView android:id="@+id/rowUpdate" style="@style/SheetRow" android:text="Cek pembaruan" />
